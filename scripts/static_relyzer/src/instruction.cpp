@@ -117,10 +117,24 @@ void instruction_t::make_nop() {
 		op[i] = "BLANK";
 	def = "";
 }
+
+/***********************************
+ * THUMB MEMORY ACCESS INSTRUCTION *
+ ***********************************/
 bool instruction_t::is_load_op() {
 	if(is_function_name) 
 		return false;
-	if(opcode.substr(0,2).compare("ld") == 0) 
+	if(opcode.substr(0,3).compare("LDR") == 0) 
+        return true;
+    if(opcode.substr(0,4).compare("LDRH") == 0) 
+        return true;
+    if(opcode.substr(0,5).compare("LDRSH") == 0) 
+        return true;
+    if(opcode.substr(0,4).compare("LDRB") == 0) 
+        return true;
+	if(opcode.substr(0,5).compare("LDRSB") == 0) 
+        return true;
+    if(opcode.substr(0,5).compare("LDMIA") == 0) 
         return true;
 	return false;
 }
@@ -128,23 +142,97 @@ bool instruction_t::is_load_op() {
 bool instruction_t::is_store_op() {
 	if(is_function_name) 
 		return false;
-	if(opcode.substr(0,2).compare("st") == 0) 
+	if(opcode.substr(0,3).compare("STR") == 0) 
+		return true;
+	if(opcode.substr(0,4).compare("STRH") == 0) 
+        return true;
+	if(opcode.substr(0,5).compare("STRB") == 0) 
+        return true;
+    if(opcode.substr(0,5).compare("STMIA") == 0) 
+        return true;
+	return false;
+}
+
+bool instruction_t::is_push_op() {
+	if(is_function_name) 
+		return false;
+	if(opcode.substr(0,4).compare("PUSH") == 0) 
+		return true;
+	return false;
+}
+
+bool instruction_t::is_pop_op() {
+	if(is_function_name) 
+		return false;
+	if(opcode.substr(0,3).compare("POP") == 0) 
 		return true;
 	return false;
 }
 
 bool instruction_t::is_memory_op() {
-	if(is_load_op() || is_store_op()) 
+	if(is_load_op() || is_store_op() || is_push_op() || is_pop_op()) 
 		return true;
 	return false;
 }
 
+/********************************
+ * THUMB ARITHMETIC INSTRUCTION *
+ ********************************/
+
+bool instruction_t::is_arithmetic_op() {
+	if(is_function_name) 
+		return false;
+	if(opcode.substr(0,3).compare("add") == 0) 
+		return true;
+	if(opcode.substr(0,3).compare("sub") == 0) 
+		return true;
+	if(opcode.substr(0,3).compare("mul") == 0) 
+		return true;
+	if(opcode.substr(0,4).compare("sdiv") == 0 || opcode.substr(0,4).compare("udiv") == 0) 
+		return true;
+
+	if(opcode.compare("restore") == 0) 
+		return true;
+	if(is_save())
+		return true;
+
+	//floating point
+	if(opcode.substr(0,4).compare("fmul") == 0 
+            || opcode.substr(0,4).compare("fadd") == 0 
+            || opcode.substr(0,4).compare("fdiv") == 0 
+            || opcode.substr(0,4).compare("fsub") == 0 
+            || opcode.substr(0,5).compare("fsqrt") == 0 
+            || opcode.substr(0,5).compare("fsmul") == 0 )
+    {
+		return true;
+    }
+	return false;
+}
+
+
 bool instruction_t::is_shift_op() {
 	if(is_function_name) 
 		return false;
-	if(opcode.substr(0,2).compare("sr") == 0) 
+	// Arithmetic Shift Right
+	if(opcode.substr(0,3).compare("ASR") == 0) 
 		return true;
-	if(opcode.substr(0,2).compare("sl") == 0) 
+	// Logical Shift Left
+	if(opcode.substr(0,3).compare("LSL") == 0) 
+		return true;
+	// Logical Shift Right
+	if(opcode.substr(0,3).compare("LSR") == 0) 
+		return true;
+	// Rotate Right 
+	if(opcode.substr(0,3).compare("ROR") == 0) 
+		return true;
+	return false;
+}
+
+bool instruction_t::is_test_op() 
+{
+	if (is_function_name)
+		return false;
+	if (opcode.substr(0,3).compare("TST") == 0)
 		return true;
 	return false;
 }
@@ -152,9 +240,29 @@ bool instruction_t::is_shift_op() {
 bool instruction_t::is_branch_op() {
 	if(is_function_name) 
 		return false;
-	if(opcode.substr(0,1).compare("b") == 0 && opcode.compare("btst") != 0 && opcode.compare("bset") != 0 && opcode.compare("bclr") != 0) 
+	if(opcode.substr(0,1).compare("B") == 0) 
 		return true;
-	if(opcode.substr(0,2).compare("fb") == 0) 
+	if(opcode.substr(0,2).compare("BL") == 0) 
+		return true;
+	if(opcode.substr(0,2).compare("BX") == 0) 
+		return true;
+	if(opcode.substr(0,3).compare("BLX") == 0) 
+		return true;
+	return false;
+}
+
+bool instruction_t::is_software_interrupt_op() {
+	if (is_function_name)
+		return false;
+	if (opcode.substr(0,3).compare("SWI") == 0)
+		return true;
+	return false;
+}
+
+bool instruction_t::is_breakpoint_op() {
+	if (is_function_name)
+		return false;
+	if (opcode.substr(0,4).compare("BKPT") == 0)
 		return true;
 	return false;
 }
@@ -276,29 +384,33 @@ bool instruction_t::is_addcc() {
 bool instruction_t::is_compare_op() {
 	if(is_function_name) 
 		return false;
-	if(opcode.substr(0,3).compare("cmp") == 0) 
+	if(opcode.substr(0,3).compare("CMP") == 0) 
 		return true;
-	if(opcode.substr(0,4).compare("fcmp") == 0) 
+	if(opcode.substr(0,3).compare("CMN") == 0) 
 		return true;
-	if(opcode.compare("btst") == 0) 
-		return true;
-	if(opcode.compare("tst") == 0) 
-		return true;
-	if(is_orcc()) 
-		return true;
+	// if(opcode.compare("btst") == 0) 
+	// 	return true;
+	// if(opcode.compare("tst") == 0) 
+	// 	return true;
+	// if(is_orcc()) 
+	// 	return true;
 	// addcc %r, imm, %g0 is used just to set the conidtion code. We treat it as a compare instruction
 	if(is_addcc()) 
 		if(def.compare("%g0") == 0) 
 			return true;
 	return false;
 }
-bool instruction_t::is_fcompare_op() {
+
+
+
+bool instruction_t::is_neg_compare_op() {
 	if(is_function_name) 
 		return false;
-	if(opcode.substr(0,4).compare("fcmp") == 0) 
+	if(opcode.substr(0,3).compare("CMN") == 0) 
 		return true;
 	return false;
-}
+}3
+
 
 bool instruction_t::is_func_name() {
 	return is_function_name;
@@ -314,61 +426,22 @@ bool instruction_t::is_logical_op() {
 		return false;
 	if(is_shift_op())
 		return true;
-	if(opcode.substr(0,3).compare("and") == 0) 
+	if(opcode.substr(0,3).compare("AND") == 0) 
 		return true;
-	if(opcode.substr(0,2).compare("or") == 0) 
+	//logical or Rd = Rn OR Operand2
+	if(opcode.substr(0,3).compare("ORR") == 0) 
 		return true;
-	if(opcode.substr(0,1).compare("x") == 0) 
+	//exclusive (xor) Rd = Rn EOR Operand2
+	if(opcode.substr(0,3).compare("EOR") == 0) 
 		return true;
-	if(opcode.substr(0,3).compare("not") == 0) 
+	// Bit clear Rd = Rn AND (!operand2)
+	if(opcode.substr(0,3).compare("BIC") == 0) 
 		return true;
-	if(opcode.compare("bset") == 0) 
-		return true;
-	if(opcode.compare("btog") == 0) 
-		return true;
-	return false;
-}
-
-bool instruction_t::is_arithmetic_op() {
-	if(is_function_name) 
-		return false;
-	if(opcode.substr(0,3).compare("add") == 0) 
-		return true;
-	if(opcode.substr(0,3).compare("sub") == 0) 
-		return true;
-	if(opcode.substr(0,3).compare("mul") == 0 || opcode.substr(0,4).compare("smul") == 0 || opcode.substr(0,4).compare("umul") == 0) 
-		return true;
-	if(opcode.substr(0,4).compare("sdiv") == 0 || opcode.substr(0,4).compare("udiv") == 0) 
-		return true;
-
-	// If and only if a spill or ﬁll trap is not generated, SAVE and RESTORE behave like
-	// normal ADD instructions, except that the source operands r[rs1] and/or r[rs2] are read from the
-	// old window (that is, the window addressed by the original CWP) and the sum is written into r[rd]
-	// of the new window (that is, the window addressed by the new CWP).
-	// see A.46 in sparc-v9 manual (page 254)
-	if(opcode.compare("restore") == 0) 
-		return true;
-	if(is_save())
-		return true;
-
-	//floating point
-	if(opcode.substr(0,4).compare("fmul") == 0 
-            || opcode.substr(0,4).compare("fadd") == 0 
-            || opcode.substr(0,4).compare("fdiv") == 0 
-            || opcode.substr(0,4).compare("fsub") == 0 
-            || opcode.substr(0,5).compare("fsqrt") == 0 
-            || opcode.substr(0,5).compare("fsmul") == 0 )
-    {
-		return true;
-    }
-	return false;
-}
-
-bool instruction_t::is_add_op() {
-	if(is_function_name) 
-		return false;
-	if(opcode.compare("add") == 0) 
-		return true;
+	//bit set in sparc, may not need
+	//if(opcode.compare("bset") == 0) 
+	//	return true;
+	//if(opcode.compare("btog") == 0) 
+	//	return true;
 	return false;
 }
 
@@ -376,12 +449,15 @@ bool instruction_t::is_mov_op() {
 	if(is_function_name) 
 		return false;
 	//floating point
-	if(opcode.substr(0,3).compare("mov") == 0 || opcode.substr(0,4).compare("fmov") == 0 )
+	if(opcode.substr(0,3).compare("MOV") == 0)
 		return true;
-	if(opcode.substr(0,4).compare("fneg") == 0 || opcode.substr(0,4).compare("fabs") == 0 )
+	if(opcode.substr(0,3).compare("MVN") == 0)
+		return true;
+	if(opcode.substr(0,3).compare("NEG") == 0)
 		return true;
 	return false;
 }
+
 
 bool instruction_t::is_movcc_op() {
 	if(is_function_name) 
